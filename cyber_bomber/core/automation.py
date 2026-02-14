@@ -1,4 +1,4 @@
-import uiautomation as auto # type: ignore
+
 import threading
 import time
 import pyperclip # type: ignore
@@ -119,12 +119,21 @@ class BomberEngine:
 
     def emergency_stop(self):
         self._stop_event.set()
+        self._release_modifiers()
+
+    def _release_modifiers(self):
+        """Force release Ctrl, Alt, Shift keys to prevent stuck keys"""
+        try:
+            ctypes.windll.user32.keybd_event(0x11, 0, 2, 0) # Ctrl Up
+            ctypes.windll.user32.keybd_event(0x12, 0, 2, 0) # Alt Up
+            ctypes.windll.user32.keybd_event(0x10, 0, 2, 0) # Shift Up
+        except:
+            pass
 
     def _fast_send_keys(self):
         """
         使用 keybd_event 极速发送 Ctrl+V 和 Enter
-        回退说明：SendInput 虽然底层但引发了严重的键盘卡死问题。
-        此版本恢复到用户反馈 "丢包率仅3%" 时的最佳稳定状态。
+        安全增强版：使用 try...finally 确保 Ctrl 键一定被释放
         """
         # 经过调优的最佳参数 (3% 丢包率)
         T_HOLD = 0.005 # 按键保持时间 5ms
@@ -132,14 +141,17 @@ class BomberEngine:
         P_WAIT = 0.05  # 粘贴后等待时间 50ms (确保 Electron 渲染)
         E_HOLD = 0.02  # 回车键保持时间 20ms (确保发送触发)
         
-        # 1. Ctrl + V
-        ctypes.windll.user32.keybd_event(0x11, 0, 0, 0) # type: ignore # Ctrl Down
-        time.sleep(T_HOLD)
-        ctypes.windll.user32.keybd_event(0x56, 0, 0, 0) # type: ignore # V Down
-        time.sleep(T_HOLD)
-        ctypes.windll.user32.keybd_event(0x56, 0, 2, 0) # type: ignore # V Up
-        time.sleep(T_GAP)
-        ctypes.windll.user32.keybd_event(0x11, 0, 2, 0) # type: ignore # Ctrl Up
+        try:
+            # 1. Ctrl + V
+            ctypes.windll.user32.keybd_event(0x11, 0, 0, 0) # type: ignore # Ctrl Down
+            time.sleep(T_HOLD)
+            ctypes.windll.user32.keybd_event(0x56, 0, 0, 0) # type: ignore # V Down
+            time.sleep(T_HOLD)
+            ctypes.windll.user32.keybd_event(0x56, 0, 2, 0) # type: ignore # V Up
+            time.sleep(T_GAP)
+        finally:
+            # 无论发生什么，必须确保 Ctrl 弹起
+            ctypes.windll.user32.keybd_event(0x11, 0, 2, 0) # type: ignore # Ctrl Up
         
         # 2. 等待粘贴处理
         time.sleep(P_WAIT) 
@@ -200,7 +212,8 @@ class BomberEngine:
                             log_callback(f"[{window_name}] 发送 ({sent_count+1})")
                         
                     except Exception as e:
-                        pass
+                        # 发生异常尝试释放按键
+                        self._release_modifiers()
                 # --- 结束临界区 ---
 
                 if success:
@@ -218,3 +231,6 @@ class BomberEngine:
                 
         except Exception as e:
             log_callback(f"[{window_name}] 崩溃: {e}")
+        finally:
+             # 任务彻底结束时，兜底释放一次按键
+            self._release_modifiers()

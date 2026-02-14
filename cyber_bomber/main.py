@@ -3,6 +3,7 @@ import threading
 import sys
 import os
 import time
+import win32gui # type: ignore
 
 # Ensure core package is importable
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +24,10 @@ class CyberBomberApp(ctk.CTk):
         self.scanner = WindowScanner()
         self.engine = BomberEngine()
         
+        # Initialize State
+        self.window_map = {}
+        self.selected_window_var = ctk.StringVar(value="")
+
         # UI Layout Registration
         self._init_ui()
         
@@ -49,7 +54,7 @@ class CyberBomberApp(ctk.CTk):
         self.scrollable_frame = ctk.CTkScrollableFrame(self.sidebar_frame, label_text="检测到的窗口")
         self.scrollable_frame.grid(row=3, column=0, padx=20, pady=(10, 0), sticky="nsew")
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
-        self.checkboxes = [] # List to store checkboxes logic
+
 
         # --- Main Content (Right) ---
         self.main_frame = ctk.CTkFrame(self)
@@ -110,6 +115,7 @@ class CyberBomberApp(ctk.CTk):
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
             
+        self.window_map = {}
         self.check_vars = []
         
         # Scan windows
@@ -125,8 +131,7 @@ class CyberBomberApp(ctk.CTk):
         # But since the list is dynamic, we can't easily bind one StringVar to generated buttons without value management.
         # However, keeping it simple: use RadioButton, all sharing one variable.
         
-        if not hasattr(self, 'selected_window_var'):
-            self.selected_window_var = ctk.StringVar(value="")
+
 
         for win in windows:
             # Value needs to be unique, we use handle as string
@@ -144,8 +149,6 @@ class CyberBomberApp(ctk.CTk):
             rb.pack(fill="x", padx=5, pady=2)
             
             # We store the full window object in a dict to retrieve later
-            if not hasattr(self, 'window_map'):
-                self.window_map = {}
             self.window_map[win_handle_str] = win
             
         self.log_msg(f"刷新完成: 找到 {len(windows)} 个窗口")
@@ -164,6 +167,17 @@ class CyberBomberApp(ctk.CTk):
             return
 
         target = self.window_map[selected_handle]
+        
+        # Double check if window still exists
+        try:
+            if not win32gui.IsWindow(target['handle']):
+                self.log_msg("错误: 目标窗口已失效，请重新刷新！")
+                self.refresh_process_list()
+                return
+        except Exception:
+            self.log_msg("错误: 无法检测窗口状态")
+            return
+
         targets = [target] # Engine expects a list
 
         # 2. Collect Messages
