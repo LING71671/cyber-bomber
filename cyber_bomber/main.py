@@ -30,6 +30,9 @@ class CyberBomberApp(ctk.CTk):
 
         # UI Layout Registration
         self._init_ui()
+
+        # 窗口关闭时安全退出
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
         
     def _init_ui(self):
         # Grid Layout Configuration
@@ -116,7 +119,6 @@ class CyberBomberApp(ctk.CTk):
             widget.destroy()
             
         self.window_map = {}
-        self.check_vars = []
         
         # Scan windows
         windows = self.scanner.scan_windows()
@@ -162,7 +164,7 @@ class CyberBomberApp(ctk.CTk):
 
         # Get selected target
         selected_handle = self.selected_window_var.get()
-        if not selected_handle or not hasattr(self, 'window_map') or selected_handle not in self.window_map:
+        if not selected_handle or selected_handle not in self.window_map:
             self.log_msg("请先选择一个目标窗口！") # Changed from self.log to self.log_msg
             return
 
@@ -186,6 +188,9 @@ class CyberBomberApp(ctk.CTk):
             self.log_msg("错误: 请输入文案！")
             return
         messages = [line for line in raw_text.split('\n') if line.strip()]
+        if not messages:
+            self.log_msg("错误: 文案内容全为空行！")
+            return
 
         # 3. Collect Config
         try:
@@ -193,6 +198,10 @@ class CyberBomberApp(ctk.CTk):
             count = int(self.count_entry.get())
         except ValueError:
             self.log_msg("错误: 间隔和次数必须是数字！")
+            return
+
+        if interval < 0 or count <= 0:
+            self.log_msg("错误: 间隔不能为负数，次数必须大于0！")
             return
 
         # 4. Update UI State
@@ -235,6 +244,11 @@ class CyberBomberApp(ctk.CTk):
         self.start_btn.configure(state="normal")
         self.stop_btn.configure(state="disabled")
         self.refresh_btn.configure(state="normal")
+
+    def _on_closing(self):
+        """窗口关闭时安全停止所有线程"""
+        self.engine.emergency_stop()
+        self.destroy()
 
 if __name__ == "__main__":
     app = CyberBomberApp()

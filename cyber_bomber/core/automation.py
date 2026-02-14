@@ -2,13 +2,11 @@
 import threading
 import time
 import pyperclip # type: ignore
-import random
 import ctypes
 import psutil # type: ignore
 import win32gui # type: ignore
 import win32process # type: ignore
 import win32con # type: ignore
-import win32api # type: ignore
 
 class WindowScanner:
     """
@@ -68,7 +66,7 @@ class WindowScanner:
                         # 我们只排除那些真的没用的
                         if title in ["TXGuiFoundation", "QQ", "腾讯网迷你版", "两只老虎爱跳舞"]: 
                              # 简单的黑名单，防止主窗口混入
-                             pass
+                             continue
                         
                         # 构造返回对象
                         target_windows.append({
@@ -127,7 +125,7 @@ class BomberEngine:
             ctypes.windll.user32.keybd_event(0x11, 0, 2, 0) # Ctrl Up
             ctypes.windll.user32.keybd_event(0x12, 0, 2, 0) # Alt Up
             ctypes.windll.user32.keybd_event(0x10, 0, 2, 0) # Shift Up
-        except:
+        except Exception:
             pass
 
     def _fast_send_keys(self):

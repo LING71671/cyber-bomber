@@ -1,15 +1,12 @@
 import unittest
 import sys
 import os
-import threading
-import time
 
 # Ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from core.automation import WindowScanner, BomberEngine
 
-class TestCyberBomberCore(unittes
-t.TestCase):
+class TestCyberBomberCore(unittest.TestCase):
     def test_imports(self):
         """Test if core modules import correctly"""
         self.assertIsNotNone(WindowScanner)
@@ -19,17 +16,21 @@ t.TestCase):
         """Test WindowScanner instantiation"""
         scanner = WindowScanner()
         self.assertIsInstance(scanner, WindowScanner)
-        # Note: We can't easily test scan_windows without a GUI env, 
-        # but we can try to scan and see if it returns a list (even empty)
-        windows = scanner.scan_windows(keywords=["NonExistentWindow12345"])
+        # scan_windows 使用硬编码的进程白名单，无需传递 keywords
+        windows = scanner.scan_windows()
         self.assertIsInstance(windows, list)
-        self.assertEqual(len(windows), 0)
 
     def test_engine_instantiation(self):
         """Test BomberEngine instantiation"""
         engine = BomberEngine()
         self.assertIsInstance(engine, BomberEngine)
         self.assertFalse(engine._stop_event.is_set())
+
+    def test_engine_stop(self):
+        """Test emergency stop sets the event"""
+        engine = BomberEngine()
+        engine.emergency_stop()
+        self.assertTrue(engine._stop_event.is_set())
 
 def mock_log(msg):
     print(f"[TEST LOG] {msg}")
