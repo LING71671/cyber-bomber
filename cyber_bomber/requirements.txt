@@ -1,0 +1,6 @@
+customtkinter
+uiautomation
+pyperclip
+pyinstaller
+psutil
+pywin32
